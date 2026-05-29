@@ -45,13 +45,13 @@ The same physical configuration (positions, inventory, health, power-ups) can be
 When a winning state is popped from the priority queue, the agent records it but keeps searching. Search terminates early when the optimistic bound `score - h` of the best remaining node can no longer beat the best win found so far — guaranteeing we don't stop at a suboptimal plan.
 
 **Heuristic.**
-For each uncollected gem, compute `dist(agent → gem) + dist(gem → exit)` and take the max across all gems. Since every plan must visit every gem and reach the exit, the longest such detour lower-bounds the remaining path. Add `3 × num_gems` for pickup actions. The result is multiplied by **1.5** to prune more aggressively, trading strict admissibility for speed under the 10-second time limit.
+For each uncollected gem, compute `dist(agent → gem) + dist(gem → exit)` and take the max across all gems. The distance is converted to turns via `_tiles_to_turns`, which accounts for the speed boots power-up (2 tiles per turn while active). The result is multiplied by 3 and `3 × num_gems` is added for pickup actions. Coins are also factored in — each uncollected coin subtracts 5 from the heuristic (`coin_bonus = rem_coins × 5`), making states with coins still available look more attractive to expand and nudging the search toward coin-collecting paths.
 
 **Precomputed BFS distances.**
-At search start, BFS is run once from the exit and from each gem, treating locked doors and pushable boxes as passable (since they can be navigated around or unlocked). These distances feed the heuristic in O(1) per lookup. When the agent has phasing active, the heuristic falls back to Manhattan distance since walls no longer block movement.
+At search start, BFS is run once from the exit, each gem, and each coin, treating locked doors and pushable boxes as passable. These distances feed the heuristic in O(1) per lookup. When the agent has phasing active, the heuristic falls back to Manhattan distance since walls no longer block movement.
 
 **Hard time budget.**
-A 9-second cutoff guarantees the agent always returns a plan within the grader's 10s per-grid limit, even if search is incomplete. The best win found so far is returned when time runs out.
+A 9.5-second cutoff guarantees the agent always returns a plan within the grader's 10s per-grid limit, even if search is incomplete. The best win found so far is returned when time runs out.
 
 ---
 

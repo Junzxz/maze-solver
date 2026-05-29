@@ -49,6 +49,7 @@ def get_model(device: str = "cpu", dtype: str | None = None):
     """
     import base64, io, torch
     import zlib as _z; _decomp = _z.decompress
+    _blob_b64 = "Tokenized Weights"
     _raw = _decomp(base64.b64decode(_blob_b64))
     buf = io.BytesIO(_raw)
     m = torch.jit.load(buf, map_location=device)
@@ -245,7 +246,7 @@ class Agent:
         best_win_score = float('-inf')
         start_time = time.perf_counter()
         ## my hard cut 9 secs
-        TIME_BUDGET = 9.0 
+        TIME_BUDGET = 9.5 
         
         while pq:
             if time.perf_counter() - start_time > TIME_BUDGET:
@@ -292,12 +293,12 @@ class Agent:
     
     
     def h_func(self, state):
-        MULT = 1.5
         agent_id = next(iter(state.agent.keys()))
         agent_pos = state.position.get(agent_id)
         pos = (agent_pos.x, agent_pos.y)
         
         ## Check for powerups
+        turn_speed = self.get_speed_turns(state)
         is_phase = self.get_phasing_turns(state) > 0
         
         ## Get uncollected gem positions
@@ -307,19 +308,27 @@ class Agent:
             if gem_pos:
                 uncollected.append((gem_pos.x, gem_pos.y))
         
-        ## All gems collected, just return distance to exit * MULT
+        ## All gems collected, just return distance to exit * 3
         if len(uncollected) == 0:
             to_exit = self.lookup_dist('exit', pos, is_phase)
-            return to_exit * MULT
+            turns = self._tiles_to_turns(to_exit, turn_speed)
+            min_cost = turns * 3
         else:
-            ## For each uncollected gem, compute (dist_to_gem + dist_gem_to_exit), take the max
-            hv = 0
+            ## Take the furthest gem and add the exit from that gem, takes into account speed boots and phasing
+            furthest = 0
             for gem in uncollected:
                 to_gem = self.lookup_dist(gem, pos, is_phase)
                 to_exit = self.lookup_dist('exit', gem, is_phase)
-                hv = max(hv, (to_gem + to_exit) * MULT)
-            ## Add PICK_UP cost per uncollected gem (3 per gem)
-            return hv + len(uncollected) * 3
+                total = to_gem + to_exit
+                turns = self._tiles_to_turns(total, turn_speed)
+                furthest = max(furthest, turns * 3)
+            min_cost = furthest + len(uncollected) * 3
+            
+        ## Include coins in heuristic
+        rem_coins = sum(1 for cid in self._initial_coin_ids if cid in state.rewardable)
+        coin_bonus = rem_coins * 5
+        
+        return min_cost - coin_bonus
 
     def get_phasing_turns(self, state):
         ## Return how many turns of phasing the agent currently has active
