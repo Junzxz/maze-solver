@@ -22,7 +22,9 @@ Grid Adventure is a grid-based puzzle where the agent starts at a fixed position
 
 The scoring rewards collecting coins and gems efficiently while minimising turns taken.
 
-![Grid Adventure example](grid_example.png)
+<p align="center">
+  <img src="grid_example.png" alt="Grid Adventure example">
+</p>
 
 ---
 
